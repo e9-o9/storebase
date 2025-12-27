@@ -145,3 +145,40 @@ export const alerts = mysqlTable("alerts", {
 
 export type Alert = typeof alerts.$inferSelect;
 export type InsertAlert = typeof alerts.$inferInsert;
+
+/**
+ * Stores table - represents individual stores/shops in the marketplace
+ */
+export const stores = mysqlTable("stores", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  domain: varchar("domain", { length: 255 }),
+  storeType: varchar("storeType", { length: 64 }).default("shopify"),
+  apiKey: varchar("apiKey", { length: 255 }),
+  settings: json("settings").$type<Record<string, unknown>>(),
+  status: mysqlEnum("status", ["active", "inactive", "suspended"]).default("active").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Store = typeof stores.$inferSelect;
+export type InsertStore = typeof stores.$inferInsert;
+
+/**
+ * Agent-Store assignments (channels) - maps agents to stores
+ */
+export const agentStoreChannels = mysqlTable("agentStoreChannels", {
+  id: int("id").autoincrement().primaryKey(),
+  agentId: int("agentId").notNull(),
+  storeId: int("storeId").notNull(),
+  channelName: varchar("channelName", { length: 255 }),
+  isActive: int("isActive").default(1).notNull(),
+  config: json("config").$type<Record<string, unknown>>(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AgentStoreChannel = typeof agentStoreChannels.$inferSelect;
+export type InsertAgentStoreChannel = typeof agentStoreChannels.$inferInsert;

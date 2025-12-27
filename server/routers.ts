@@ -453,6 +453,122 @@ const exportRouter = router({
   }),
 });
 
+// ============ STORE ROUTER ============
+const storeRouter = router({
+  list: protectedProcedure.query(async ({ ctx }) => {
+    return db.getStoresByUserId(ctx.user.id);
+  }),
+
+  get: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ ctx, input }) => {
+      return db.getStoreById(input.id, ctx.user.id);
+    }),
+
+  create: protectedProcedure
+    .input(z.object({
+      name: z.string().min(1).max(255),
+      description: z.string().optional(),
+      domain: z.string().optional(),
+      storeType: z.string().default("shopify"),
+      apiKey: z.string().optional(),
+      settings: z.record(z.unknown()).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      return db.createStore({
+        userId: ctx.user.id,
+        name: input.name,
+        description: input.description,
+        domain: input.domain,
+        storeType: input.storeType,
+        apiKey: input.apiKey,
+        settings: input.settings,
+        status: "active",
+      });
+    }),
+
+  update: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      name: z.string().min(1).max(255).optional(),
+      description: z.string().optional(),
+      domain: z.string().optional(),
+      storeType: z.string().optional(),
+      apiKey: z.string().optional(),
+      settings: z.record(z.unknown()).optional(),
+      status: z.enum(["active", "inactive", "suspended"]).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...data } = input;
+      return db.updateStore(id, ctx.user.id, data);
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await db.deleteStore(input.id, ctx.user.id);
+      return { success: true };
+    }),
+});
+
+// ============ CHANNEL ROUTER ============
+const channelRouter = router({
+  // Assign an agent to a store
+  assign: protectedProcedure
+    .input(z.object({
+      agentId: z.number(),
+      storeId: z.number(),
+      channelName: z.string().optional(),
+      config: z.record(z.unknown()).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      return db.assignAgentToStore({
+        agentId: input.agentId,
+        storeId: input.storeId,
+        channelName: input.channelName,
+        config: input.config,
+        isActive: 1,
+      });
+    }),
+
+  // Unassign an agent from a store
+  unassign: protectedProcedure
+    .input(z.object({
+      agentId: z.number(),
+      storeId: z.number(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await db.unassignAgentFromStore(input.agentId, input.storeId);
+      return { success: true };
+    }),
+
+  // Get all channels for an agent
+  getByAgent: protectedProcedure
+    .input(z.object({ agentId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      return db.getChannelsByAgentId(input.agentId);
+    }),
+
+  // Get all channels for a store
+  getByStore: protectedProcedure
+    .input(z.object({ storeId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      return db.getChannelsByStoreId(input.storeId);
+    }),
+
+  // Update channel status (active/inactive)
+  updateStatus: protectedProcedure
+    .input(z.object({
+      agentId: z.number(),
+      storeId: z.number(),
+      isActive: z.number(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await db.updateChannelStatus(input.agentId, input.storeId, input.isActive);
+      return { success: true };
+    }),
+});
+
 // ============ MAIN ROUTER ============
 export const appRouter = router({
   system: systemRouter,
@@ -470,6 +586,8 @@ export const appRouter = router({
   settings: settingsRouter,
   alerts: alertsRouter,
   export: exportRouter,
+  store: storeRouter,
+  channel: channelRouter,
 });
 
 export type AppRouter = typeof appRouter;
