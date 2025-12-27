@@ -8,7 +8,9 @@ import {
   accountSettings, InsertAccountSettings, AccountSettings,
   analyticsEvents, InsertAnalyticsEvent,
   exportedFiles, InsertExportedFile,
-  alerts, InsertAlert, Alert
+  alerts, InsertAlert, Alert,
+  stores, InsertStore, Store,
+  agentStoreChannels, InsertAgentStoreChannel, AgentStoreChannel
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { nanoid } from 'nanoid';
@@ -531,5 +533,172 @@ export async function checkRetrainingAlert(userId: number): Promise<void> {
         });
       }
     }
+  }
+}
+
+// ============ STORE FUNCTIONS ============
+
+export async function getStoresByUserId(userId: number): Promise<Store[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db.select().from(stores).where(eq(stores.userId, userId)).orderBy(desc(stores.createdAt));
+  } catch (error) {
+    console.error("[Database] Failed to get stores:", error);
+    return [];
+  }
+}
+
+export async function getStoreById(id: number, userId: number): Promise<Store | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  try {
+    const result = await db.select().from(stores).where(
+      and(eq(stores.id, id), eq(stores.userId, userId))
+    ).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  } catch (error) {
+    console.error("[Database] Failed to get store:", error);
+    return undefined;
+  }
+}
+
+export async function createStore(data: InsertStore): Promise<Store> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.insert(stores).values(data);
+    const insertId = Number(result[0].insertId);
+    const store = await db.select().from(stores).where(eq(stores.id, insertId)).limit(1);
+    return store[0];
+  } catch (error) {
+    console.error("[Database] Failed to create store:", error);
+    throw error;
+  }
+}
+
+export async function updateStore(id: number, userId: number, data: Partial<InsertStore>): Promise<Store | undefined> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    await db.update(stores).set(data).where(
+      and(eq(stores.id, id), eq(stores.userId, userId))
+    );
+    return getStoreById(id, userId);
+  } catch (error) {
+    console.error("[Database] Failed to update store:", error);
+    throw error;
+  }
+}
+
+export async function deleteStore(id: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    // First delete all agent-store channel assignments for this store
+    await db.delete(agentStoreChannels).where(eq(agentStoreChannels.storeId, id));
+    // Then delete the store
+    await db.delete(stores).where(
+      and(eq(stores.id, id), eq(stores.userId, userId))
+    );
+  } catch (error) {
+    console.error("[Database] Failed to delete store:", error);
+    throw error;
+  }
+}
+
+// ============ AGENT-STORE CHANNEL FUNCTIONS ============
+
+export async function assignAgentToStore(data: InsertAgentStoreChannel): Promise<AgentStoreChannel> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.insert(agentStoreChannels).values(data);
+    const insertId = Number(result[0].insertId);
+    const channel = await db.select().from(agentStoreChannels).where(eq(agentStoreChannels.id, insertId)).limit(1);
+    return channel[0];
+  } catch (error) {
+    console.error("[Database] Failed to assign agent to store:", error);
+    throw error;
+  }
+}
+
+export async function unassignAgentFromStore(agentId: number, storeId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    await db.delete(agentStoreChannels).where(
+      and(eq(agentStoreChannels.agentId, agentId), eq(agentStoreChannels.storeId, storeId))
+    );
+  } catch (error) {
+    console.error("[Database] Failed to unassign agent from store:", error);
+    throw error;
+  }
+}
+
+export async function getChannelsByAgentId(agentId: number): Promise<(AgentStoreChannel & { store: Store })[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const result = await db
+      .select()
+      .from(agentStoreChannels)
+      .leftJoin(stores, eq(agentStoreChannels.storeId, stores.id))
+      .where(eq(agentStoreChannels.agentId, agentId));
+    
+    return result
+      .filter(r => r.stores != null)
+      .map(r => ({
+        ...r.agentStoreChannels,
+        store: r.stores as Store
+      }));
+  } catch (error) {
+    console.error("[Database] Failed to get channels by agent:", error);
+    return [];
+  }
+}
+
+export async function getChannelsByStoreId(storeId: number): Promise<(AgentStoreChannel & { agent: Agent })[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const result = await db
+      .select()
+      .from(agentStoreChannels)
+      .leftJoin(agents, eq(agentStoreChannels.agentId, agents.id))
+      .where(eq(agentStoreChannels.storeId, storeId));
+    
+    return result
+      .filter(r => r.agents != null)
+      .map(r => ({
+        ...r.agentStoreChannels,
+        agent: r.agents as Agent
+      }));
+  } catch (error) {
+    console.error("[Database] Failed to get channels by store:", error);
+    return [];
+  }
+}
+
+export async function updateChannelStatus(agentId: number, storeId: number, isActive: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    await db.update(agentStoreChannels).set({ isActive }).where(
+      and(eq(agentStoreChannels.agentId, agentId), eq(agentStoreChannels.storeId, storeId))
+    );
+  } catch (error) {
+    console.error("[Database] Failed to update channel status:", error);
+    throw error;
   }
 }

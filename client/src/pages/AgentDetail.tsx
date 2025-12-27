@@ -14,8 +14,8 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Bot, Save, RefreshCw, PlayCircle, MessageSquare, BarChart3, Trash2, Plus, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowLeft, Bot, Save, RefreshCw, PlayCircle, MessageSquare, BarChart3, Trash2, Plus, X, Store } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
 import { useLocation, useParams } from "wouter";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -169,6 +169,7 @@ export default function AgentDetail() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="model">Model Settings</TabsTrigger>
           <TabsTrigger value="starters">Conversation Starters</TabsTrigger>
+          <TabsTrigger value="stores">Store Assignments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-4">
@@ -333,6 +334,10 @@ export default function AgentDetail() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="stores" className="space-y-4">
+          <StoreAssignments agentId={agentId} />
+        </TabsContent>
       </Tabs>
 
       {/* Agent Info */}
@@ -362,5 +367,196 @@ export default function AgentDetail() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// Component for managing store assignments
+function StoreAssignments({ agentId }: { agentId: number }) {
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedStoreId, setSelectedStoreId] = useState<string>("");
+
+  const { data: channels, refetch: refetchChannels } = trpc.channel.getByAgent.useQuery({ agentId });
+  const { data: stores } = trpc.store.list.useQuery();
+  const utils = trpc.useUtils();
+
+  const assignMutation = trpc.channel.assign.useMutation({
+    onSuccess: () => {
+      toast.success("Store assigned successfully");
+      setIsAssignDialogOpen(false);
+      setSelectedStoreId("");
+      refetchChannels();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to assign store");
+    },
+  });
+
+  const unassignMutation = trpc.channel.unassign.useMutation({
+    onSuccess: () => {
+      toast.success("Store unassigned successfully");
+      refetchChannels();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to unassign store");
+    },
+  });
+
+  const handleAssign = () => {
+    if (!selectedStoreId) {
+      toast.error("Please select a store");
+      return;
+    }
+
+    assignMutation.mutate({
+      agentId,
+      storeId: Number(selectedStoreId),
+      channelName: `Agent Channel`,
+    });
+  };
+
+  // Filter out stores that are already assigned
+  const assignedStoreIds = useMemo(
+    () => new Set(channels?.map(c => c.storeId) || []),
+    [channels]
+  );
+  const availableStores = useMemo(
+    () => stores?.filter(s => !assignedStoreIds.has(s.id)) || [],
+    [stores, assignedStoreIds]
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Store Assignments</CardTitle>
+            <CardDescription>Assign this agent to stores as a channel</CardDescription>
+          </div>
+          <Button
+            onClick={() => setIsAssignDialogOpen(true)}
+            size="sm"
+            className="gradient-primary"
+            disabled={availableStores.length === 0}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Assign to Store
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {channels && channels.length > 0 ? (
+          <div className="space-y-2">
+            {channels.map((channel) => (
+              <div
+                key={channel.id}
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded bg-primary/20 flex items-center justify-center">
+                    <Store className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{channel.store.name}</p>
+                    <p className="text-xs text-muted-foreground">{channel.store.storeType}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={channel.isActive === 1 ? "default" : "secondary"}>
+                    {channel.isActive === 1 ? "Active" : "Inactive"}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => unassignMutation.mutate({
+                      agentId: channel.agentId,
+                      storeId: channel.storeId,
+                    })}
+                    disabled={unassignMutation.isPending}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center mb-3">
+              <Store className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium mb-1">No stores assigned</p>
+            <p className="text-xs text-muted-foreground mb-4">
+              Assign this agent to stores to enable it as a channel
+            </p>
+            <Button
+              onClick={() => setIsAssignDialogOpen(true)}
+              size="sm"
+              className="gradient-primary"
+              disabled={availableStores.length === 0}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Assign to Store
+            </Button>
+            {availableStores.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Create stores first to assign this agent
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Assign Dialog */}
+        {isAssignDialogOpen && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+            <Card className="w-full max-w-md mx-4">
+              <CardHeader>
+                <CardTitle>Assign to Store</CardTitle>
+                <CardDescription>Select a store to assign this agent as a channel</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="store">Select Store</Label>
+                  <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a store" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableStores.map((store) => (
+                        <SelectItem key={store.id} value={String(store.id)}>
+                          <div className="flex items-center gap-2">
+                            <Store className="w-4 h-4" />
+                            {store.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+              <div className="flex justify-end gap-2 p-6 pt-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsAssignDialogOpen(false);
+                    setSelectedStoreId("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleAssign}
+                  disabled={assignMutation.isPending || !selectedStoreId}
+                  className="gradient-primary"
+                >
+                  {assignMutation.isPending ? "Assigning..." : "Assign"}
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

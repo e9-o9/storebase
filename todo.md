@@ -6,6 +6,17 @@
 - [x] Dark mode UI with purple/indigo accent colors
 - [x] Dashboard layout with sidebar navigation
 
+## Marketplace & Channel Management
+
+- [x] Database schema for stores table
+- [x] Database schema for agent-store channel assignments
+- [x] Store management (create, read, update, delete)
+- [x] Channel assignment system (assign/unassign agents to stores)
+- [x] Stores management UI page
+- [x] Store channels management UI
+- [x] Agent detail page with store assignments tab
+- [x] Multi-tenant architecture support
+
 ## Agent Management
 
 - [x] Create new AI agents
@@ -67,3 +78,12 @@
 - [x] Loading states and skeletons
 - [x] Error handling and toast notifications
 - [x] Empty states for lists
+
+## Future Enhancements
+
+- [ ] Store-specific analytics filtering
+- [ ] Channel usage metrics
+- [ ] Automated channel provisioning via store platform APIs
+- [ ] Channel-specific chat history
+- [ ] Multi-language support per store
+- [ ] Store-specific agent customization
