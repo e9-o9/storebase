@@ -561,7 +561,7 @@ const channelRouter = router({
     .input(z.object({
       agentId: z.number(),
       storeId: z.number(),
-      isActive: z.number(),
+      isActive: z.union([z.literal(0), z.literal(1)]),
     }))
     .mutation(async ({ ctx, input }) => {
       await db.updateChannelStatus(input.agentId, input.storeId, input.isActive);

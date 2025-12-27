@@ -655,7 +655,7 @@ export async function getChannelsByAgentId(agentId: number): Promise<(AgentStore
       .where(eq(agentStoreChannels.agentId, agentId));
     
     return result
-      .filter(r => r.stores !== null)
+      .filter(r => r.stores != null)
       .map(r => ({
         ...r.agentStoreChannels,
         store: r.stores as Store
@@ -678,7 +678,7 @@ export async function getChannelsByStoreId(storeId: number): Promise<(AgentStore
       .where(eq(agentStoreChannels.storeId, storeId));
     
     return result
-      .filter(r => r.agents !== null)
+      .filter(r => r.agents != null)
       .map(r => ({
         ...r.agentStoreChannels,
         agent: r.agents as Agent
