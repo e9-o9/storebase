@@ -472,7 +472,7 @@ const storeRouter = router({
       domain: z.string().optional(),
       storeType: z.string().default("shopify"),
       apiKey: z.string().optional(),
-      settings: z.record(z.unknown()).optional(),
+      settings: z.record(z.string(), z.unknown()).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       return db.createStore({
@@ -495,7 +495,7 @@ const storeRouter = router({
       domain: z.string().optional(),
       storeType: z.string().optional(),
       apiKey: z.string().optional(),
-      settings: z.record(z.unknown()).optional(),
+      settings: z.record(z.string(), z.unknown()).optional(),
       status: z.enum(["active", "inactive", "suspended"]).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -519,7 +519,7 @@ const channelRouter = router({
       agentId: z.number(),
       storeId: z.number(),
       channelName: z.string().optional(),
-      config: z.record(z.unknown()).optional(),
+      config: z.record(z.string(), z.unknown()).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       return db.assignAgentToStore({
