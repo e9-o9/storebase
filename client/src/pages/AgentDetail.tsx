@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Bot, Save, RefreshCw, PlayCircle, MessageSquare, BarChart3, Trash2, Plus, X, Store } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useLocation, useParams } from "wouter";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -415,8 +415,14 @@ function StoreAssignments({ agentId }: { agentId: number }) {
   };
 
   // Filter out stores that are already assigned
-  const assignedStoreIds = new Set(channels?.map(c => c.storeId) || []);
-  const availableStores = stores?.filter(s => !assignedStoreIds.has(s.id)) || [];
+  const assignedStoreIds = useMemo(
+    () => new Set(channels?.map(c => c.storeId) || []),
+    [channels]
+  );
+  const availableStores = useMemo(
+    () => stores?.filter(s => !assignedStoreIds.has(s.id)) || [],
+    [stores, assignedStoreIds]
+  );
 
   return (
     <Card>
@@ -455,8 +461,8 @@ function StoreAssignments({ agentId }: { agentId: number }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={channel.isActive ? "default" : "secondary"}>
-                    {channel.isActive ? "Active" : "Inactive"}
+                  <Badge variant={channel.isActive === 1 ? "default" : "secondary"}>
+                    {channel.isActive === 1 ? "Active" : "Inactive"}
                   </Badge>
                   <Button
                     variant="ghost"

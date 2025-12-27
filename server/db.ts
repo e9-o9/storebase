@@ -654,10 +654,12 @@ export async function getChannelsByAgentId(agentId: number): Promise<(AgentStore
       .leftJoin(stores, eq(agentStoreChannels.storeId, stores.id))
       .where(eq(agentStoreChannels.agentId, agentId));
     
-    return result.map(r => ({
-      ...r.agentStoreChannels,
-      store: r.stores!
-    }));
+    return result
+      .filter(r => r.stores !== null)
+      .map(r => ({
+        ...r.agentStoreChannels,
+        store: r.stores as Store
+      }));
   } catch (error) {
     console.error("[Database] Failed to get channels by agent:", error);
     return [];
@@ -675,10 +677,12 @@ export async function getChannelsByStoreId(storeId: number): Promise<(AgentStore
       .leftJoin(agents, eq(agentStoreChannels.agentId, agents.id))
       .where(eq(agentStoreChannels.storeId, storeId));
     
-    return result.map(r => ({
-      ...r.agentStoreChannels,
-      agent: r.agents!
-    }));
+    return result
+      .filter(r => r.agents !== null)
+      .map(r => ({
+        ...r.agentStoreChannels,
+        agent: r.agents as Agent
+      }));
   } catch (error) {
     console.error("[Database] Failed to get channels by store:", error);
     return [];

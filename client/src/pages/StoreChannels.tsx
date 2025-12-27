@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { Bot, Plus, X, Link2, Activity } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -84,8 +84,14 @@ export default function StoreChannels() {
   };
 
   // Filter out agents that are already assigned
-  const assignedAgentIds = new Set(channels?.map(c => c.agentId) || []);
-  const availableAgents = agents?.filter(a => !assignedAgentIds.has(a.id)) || [];
+  const assignedAgentIds = useMemo(
+    () => new Set(channels?.map(c => c.agentId) || []),
+    [channels]
+  );
+  const availableAgents = useMemo(
+    () => agents?.filter(a => !assignedAgentIds.has(a.id)) || [],
+    [agents, assignedAgentIds]
+  );
 
   return (
     <div className="space-y-6">
